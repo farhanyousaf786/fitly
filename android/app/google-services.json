@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "840015960486",
+    "project_id": "fitly-ai-coach-2026",
+    "storage_bucket": "fitly-ai-coach-2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:840015960486:android:0f9052ae38f4fc204e1767",
+        "android_client_info": {
+          "package_name": "com.fitly.fitly"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAVLcK4xJh3H6YsQ6ubxbYmZ7OsWOLNQ2Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
