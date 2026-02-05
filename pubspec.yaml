@@ -30,12 +30,17 @@ dependencies:
   google_fonts: ^6.1.0
   
   # Voice Input
-  speech_to_text: ^6.6.0
+  speech_to_text: ^7.3.0
   permission_handler: ^11.2.0
   
   # Utilities
   intl: ^0.18.1
   uuid: ^4.3.3
+
+  # Utilities
+  intl: ^0.18.1
+  uuid: ^4.3.3
+  flutter_dotenv: ^5.1.0
 
 dev_dependencies:
   flutter_test:
@@ -44,4 +49,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  # see https://flutter.dev/to/font-from-package
+  assets:
+    - .env
