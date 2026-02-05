@@ -6,13 +6,10 @@ import '../services/local/shared_prefs_service.dart';
 
 class UserProvider extends ChangeNotifier {
   final FirestoreService _firestoreService;
-  final SharedPrefsService _sharedPrefsService;
-
   UserProvider({
     required FirestoreService firestoreService,
     required SharedPrefsService sharedPrefsService,
-  }) : _firestoreService = firestoreService,
-       _sharedPrefsService = sharedPrefsService;
+  }) : _firestoreService = firestoreService;
 
   // State
   UserProfile? _userProfile;
@@ -50,7 +47,7 @@ class UserProvider extends ChangeNotifier {
     try {
       _setLoading(true);
       _clearError();
-      
+
       final userProfile = await _firestoreService.getUserProfile(userId);
       _userProfile = userProfile;
       notifyListeners();
@@ -65,12 +62,12 @@ class UserProvider extends ChangeNotifier {
     try {
       _setLoading(true);
       _clearError();
-      
+
       final updatedProfile = userProfile.copyWith(updatedAt: DateTime.now());
       await _firestoreService.updateUserProfile(updatedProfile);
       _userProfile = updatedProfile;
       notifyListeners();
-      
+
       return true;
     } catch (e) {
       _setError('Failed to update user profile: ${e.toString()}');
@@ -82,20 +79,20 @@ class UserProvider extends ChangeNotifier {
 
   Future<bool> updateProfileImage(String imageUrl) async {
     if (_userProfile == null) return false;
-    
+
     try {
       _setLoading(true);
       _clearError();
-      
+
       final updatedProfile = _userProfile!.copyWith(
         profileImageUrl: imageUrl,
         updatedAt: DateTime.now(),
       );
-      
+
       await _firestoreService.updateUserProfile(updatedProfile);
       _userProfile = updatedProfile;
       notifyListeners();
-      
+
       return true;
     } catch (e) {
       _setError('Failed to update profile image: ${e.toString()}');
@@ -110,7 +107,7 @@ class UserProvider extends ChangeNotifier {
     try {
       _setLoading(true);
       _clearError();
-      
+
       final userConfig = await _firestoreService.getUserConfig(userId);
       _userConfig = userConfig;
       notifyListeners();
@@ -123,18 +120,19 @@ class UserProvider extends ChangeNotifier {
 
   Future<bool> createUserConfig(UserConfig config) async {
     if (_userProfile == null) return false;
-    
+
     try {
       _setLoading(true);
       _clearError();
-      
-      final configWithTimestamp = config.copyWith(
-        lastUpdated: DateTime.now(),
+
+      final configWithTimestamp = config.copyWith(lastUpdated: DateTime.now());
+
+      await _firestoreService.createUserConfig(
+        _userProfile!.id,
+        configWithTimestamp,
       );
-      
-      await _firestoreService.createUserConfig(_userProfile!.id, configWithTimestamp);
       _userConfig = configWithTimestamp;
-      
+
       // Update user profile with config
       final updatedProfile = _userProfile!.copyWith(
         config: configWithTimestamp,
@@ -142,7 +140,7 @@ class UserProvider extends ChangeNotifier {
       );
       await _firestoreService.updateUserProfile(updatedProfile);
       _userProfile = updatedProfile;
-      
+
       notifyListeners();
       return true;
     } catch (e) {
@@ -155,18 +153,19 @@ class UserProvider extends ChangeNotifier {
 
   Future<bool> updateUserConfig(UserConfig config) async {
     if (_userProfile == null) return false;
-    
+
     try {
       _setLoading(true);
       _clearError();
-      
-      final configWithTimestamp = config.copyWith(
-        lastUpdated: DateTime.now(),
+
+      final configWithTimestamp = config.copyWith(lastUpdated: DateTime.now());
+
+      await _firestoreService.updateUserConfig(
+        _userProfile!.id,
+        configWithTimestamp,
       );
-      
-      await _firestoreService.updateUserConfig(_userProfile!.id, configWithTimestamp);
       _userConfig = configWithTimestamp;
-      
+
       // Update user profile with config
       final updatedProfile = _userProfile!.copyWith(
         config: configWithTimestamp,
@@ -174,7 +173,7 @@ class UserProvider extends ChangeNotifier {
       );
       await _firestoreService.updateUserProfile(updatedProfile);
       _userProfile = updatedProfile;
-      
+
       notifyListeners();
       return true;
     } catch (e) {
@@ -191,22 +190,22 @@ class UserProvider extends ChangeNotifier {
     String? username,
   }) async {
     if (_userProfile == null) return false;
-    
+
     try {
       _setLoading(true);
       _clearError();
-      
+
       final updatedProfile = _userProfile!.copyWith(
         firstName: firstName ?? _userProfile!.firstName,
         lastName: lastName ?? _userProfile!.lastName,
         username: username ?? _userProfile!.username,
         updatedAt: DateTime.now(),
       );
-      
+
       await _firestoreService.updateUserProfile(updatedProfile);
       _userProfile = updatedProfile;
       notifyListeners();
-      
+
       return true;
     } catch (e) {
       _setError('Failed to update basic info: ${e.toString()}');
@@ -225,14 +224,14 @@ class UserProvider extends ChangeNotifier {
     String? activityLevel,
   }) async {
     if (_userConfig == null) return false;
-    
+
     try {
       _setLoading(true);
       _clearError();
-      
+
       final updatedConfig = _userConfig!.copyWith(
         age: age ?? _userConfig!.age,
-        gender: gender != null 
+        gender: gender != null
             ? Gender.values.firstWhere(
                 (g) => g.toString() == 'Gender.$gender',
                 orElse: () => Gender.other,
@@ -254,7 +253,7 @@ class UserProvider extends ChangeNotifier {
             : _userConfig!.activityLevel,
         lastUpdated: DateTime.now(),
       );
-      
+
       return await updateUserConfig(updatedConfig);
     } catch (e) {
       _setError('Failed to update fitness profile: ${e.toString()}');
@@ -276,24 +275,32 @@ class UserProvider extends ChangeNotifier {
     bool? enableHydrationReminders,
   }) async {
     if (_userConfig == null) return false;
-    
+
     try {
       _setLoading(true);
       _clearError();
-      
+
       final updatedConfig = _userConfig!.copyWith(
-        preferredWorkoutTypes: preferredWorkoutTypes ?? _userConfig!.preferredWorkoutTypes,
-        dietaryRestrictions: dietaryRestrictions ?? _userConfig!.dietaryRestrictions,
+        preferredWorkoutTypes:
+            preferredWorkoutTypes ?? _userConfig!.preferredWorkoutTypes,
+        dietaryRestrictions:
+            dietaryRestrictions ?? _userConfig!.dietaryRestrictions,
         allergies: allergies ?? _userConfig!.allergies,
-        workoutDaysPerWeek: workoutDaysPerWeek ?? _userConfig!.workoutDaysPerWeek,
-        workoutMinutesPerSession: workoutMinutesPerSession ?? _userConfig!.workoutMinutesPerSession,
-        enableNotifications: enableNotifications ?? _userConfig!.enableNotifications,
-        enableWorkoutReminders: enableWorkoutReminders ?? _userConfig!.enableWorkoutReminders,
-        enableMealReminders: enableMealReminders ?? _userConfig!.enableMealReminders,
-        enableHydrationReminders: enableHydrationReminders ?? _userConfig!.enableHydrationReminders,
+        workoutDaysPerWeek:
+            workoutDaysPerWeek ?? _userConfig!.workoutDaysPerWeek,
+        workoutMinutesPerSession:
+            workoutMinutesPerSession ?? _userConfig!.workoutMinutesPerSession,
+        enableNotifications:
+            enableNotifications ?? _userConfig!.enableNotifications,
+        enableWorkoutReminders:
+            enableWorkoutReminders ?? _userConfig!.enableWorkoutReminders,
+        enableMealReminders:
+            enableMealReminders ?? _userConfig!.enableMealReminders,
+        enableHydrationReminders:
+            enableHydrationReminders ?? _userConfig!.enableHydrationReminders,
         lastUpdated: DateTime.now(),
       );
-      
+
       return await updateUserConfig(updatedConfig);
     } catch (e) {
       _setError('Failed to update preferences: ${e.toString()}');
@@ -336,7 +343,7 @@ class UserProvider extends ChangeNotifier {
   // Get user stats
   Map<String, dynamic> getUserStats() {
     if (_userConfig == null) return {};
-    
+
     return {
       'bmi': bmi,
       'bmiCategory': bmiCategory,

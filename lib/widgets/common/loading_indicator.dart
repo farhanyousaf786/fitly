@@ -1,6 +1,5 @@
 import 'package:fitly/core/constants/text_styles.dart';
 import 'package:flutter/material.dart';
-import '../../core/theme/app_theme.dart';
 
 class LoadingIndicator extends StatelessWidget {
   final double? size;
@@ -65,10 +64,7 @@ class FullScreenLoadingIndicator extends StatelessWidget {
     return Container(
       color: backgroundColor ?? Colors.white.withOpacity(0.8),
       child: Center(
-        child: LoadingIndicator(
-          size: 48,
-          message: message ?? 'Loading...',
-        ),
+        child: LoadingIndicator(size: 48, message: message ?? 'Loading...'),
       ),
     );
   }
@@ -78,11 +74,7 @@ class ButtonLoadingIndicator extends StatelessWidget {
   final double? size;
   final Color? color;
 
-  const ButtonLoadingIndicator({
-    super.key,
-    this.size = 20,
-    this.color,
-  });
+  const ButtonLoadingIndicator({super.key, this.size = 20, this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -91,9 +83,7 @@ class ButtonLoadingIndicator extends StatelessWidget {
       height: size,
       child: CircularProgressIndicator(
         strokeWidth: 2,
-        valueColor: AlwaysStoppedAnimation<Color>(
-          color ?? Colors.white,
-        ),
+        valueColor: AlwaysStoppedAnimation<Color>(color ?? Colors.white),
       ),
     );
   }
@@ -103,11 +93,7 @@ class PulseLoadingIndicator extends StatefulWidget {
   final double? size;
   final Color? color;
 
-  const PulseLoadingIndicator({
-    super.key,
-    this.size = 24,
-    this.color,
-  });
+  const PulseLoadingIndicator({super.key, this.size = 24, this.color});
 
   @override
   State<PulseLoadingIndicator> createState() => _PulseLoadingIndicatorState();
@@ -128,10 +114,7 @@ class _PulseLoadingIndicatorState extends State<PulseLoadingIndicator>
     _animation = Tween<double>(
       begin: 0.0,
       end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
     _controller.repeat(reverse: true);
   }
 
@@ -200,10 +183,7 @@ class _DotsLoadingIndicatorState extends State<DotsLoadingIndicator>
       return Tween<double>(
         begin: 0.0,
         end: 1.0,
-      ).animate(CurvedAnimation(
-        parent: controller,
-        curve: Curves.easeInOut,
-      ));
+      ).animate(CurvedAnimation(parent: controller, curve: Curves.easeInOut));
     }).toList();
 
     _startAnimations();
@@ -259,12 +239,7 @@ class SkeletonLoader extends StatelessWidget {
   final double? height;
   final BorderRadius? borderRadius;
 
-  const SkeletonLoader({
-    super.key,
-    this.width,
-    this.height,
-    this.borderRadius,
-  });
+  const SkeletonLoader({super.key, this.width, this.height, this.borderRadius});
 
   @override
   Widget build(BuildContext context) {
@@ -300,7 +275,9 @@ class ListSkeletonLoader extends StatelessWidget {
       child: Column(
         children: List.generate(itemCount, (index) {
           return Padding(
-            padding: EdgeInsets.only(bottom: index < itemCount - 1 ? spacing : 0),
+            padding: EdgeInsets.only(
+              bottom: index < itemCount - 1 ? spacing : 0,
+            ),
             child: SkeletonLoader(
               height: itemHeight,
               borderRadius: BorderRadius.circular(12),
@@ -316,11 +293,7 @@ class CardSkeletonLoader extends StatelessWidget {
   final double? width;
   final double? height;
 
-  const CardSkeletonLoader({
-    super.key,
-    this.width,
-    this.height = 200,
-  });
+  const CardSkeletonLoader({super.key, this.width, this.height = 200});
 
   @override
   Widget build(BuildContext context) {
@@ -343,25 +316,13 @@ class CardSkeletonLoader extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SkeletonLoader(
-              height: 20,
-              width: 120,
-            ),
+            SkeletonLoader(height: 20, width: 120),
             SizedBox(height: 12),
-            SkeletonLoader(
-              height: 16,
-              width: double.infinity,
-            ),
+            SkeletonLoader(height: 16, width: double.infinity),
             SizedBox(height: 8),
-            SkeletonLoader(
-              height: 16,
-              width: double.infinity,
-            ),
+            SkeletonLoader(height: 16, width: double.infinity),
             SizedBox(height: 8),
-            SkeletonLoader(
-              height: 16,
-              width: 180,
-            ),
+            SkeletonLoader(height: 16, width: 180),
           ],
         ),
       ),
@@ -382,7 +343,8 @@ class ShimmerLoadingIndicator extends StatefulWidget {
   });
 
   @override
-  State<ShimmerLoadingIndicator> createState() => _ShimmerLoadingIndicatorState();
+  State<ShimmerLoadingIndicator> createState() =>
+      _ShimmerLoadingIndicatorState();
 }
 
 class _ShimmerLoadingIndicatorState extends State<ShimmerLoadingIndicator>
@@ -400,10 +362,7 @@ class _ShimmerLoadingIndicatorState extends State<ShimmerLoadingIndicator>
     _animation = Tween<double>(
       begin: -1.0,
       end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
     _controller.repeat();
   }
 

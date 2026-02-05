@@ -1,4 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'meal.dart';
+import 'exercise.dart';
+import 'mental_health_practice.dart';
+import 'reminder.dart';
+import 'ui_config.dart';
 
 enum FitnessGoal {
   loseWeight,
@@ -16,19 +21,34 @@ enum ActivityLevel {
   extremelyActive,
 }
 
-enum Gender {
-  male,
-  female,
-  other,
-}
+enum Gender { male, female, other }
 
 class UserConfig {
+  final String? userId;
+  final String
+  goalType; // "weight_loss", "muscle_gain", "mental_health", "energy", "general_wellness"
+  final String goalTitle;
+  final String targetDescription;
+
+  // Physical metrics
   final int age;
   final Gender gender;
   final double height; // in cm
   final double weight; // in kg
   final FitnessGoal fitnessGoal;
   final ActivityLevel activityLevel;
+
+  // Personalized Plans
+  final Map<String, Meal>? dietPlan;
+  final Map<String, List<Exercise>>? exercisePlan;
+  final int? waterGoal;
+  final Map<String, String>? sleepSchedule;
+  final List<MentalHealthPractice>? mentalHealthPractices;
+  final List<Reminder> reminders;
+  final UIConfig? uiConfig;
+  final String motivationalMessage;
+
+  // Preferences & Settings
   final List<String> preferredWorkoutTypes;
   final List<String> dietaryRestrictions;
   final List<String> allergies;
@@ -41,12 +61,24 @@ class UserConfig {
   final DateTime? lastUpdated;
 
   UserConfig({
+    this.userId,
+    required this.goalType,
+    required this.goalTitle,
+    required this.targetDescription,
     required this.age,
     required this.gender,
     required this.height,
     required this.weight,
     required this.fitnessGoal,
     required this.activityLevel,
+    this.dietPlan,
+    this.exercisePlan,
+    this.waterGoal,
+    this.sleepSchedule,
+    this.mentalHealthPractices,
+    this.reminders = const [],
+    this.uiConfig,
+    required this.motivationalMessage,
     this.preferredWorkoutTypes = const [],
     this.dietaryRestrictions = const [],
     this.allergies = const [],
@@ -60,7 +92,31 @@ class UserConfig {
   });
 
   factory UserConfig.fromMap(Map<String, dynamic> map) {
+    // Helper to parse diet plan
+    Map<String, Meal>? parseDietPlan(Map<String, dynamic>? dietMap) {
+      if (dietMap == null) return null;
+      return dietMap.map((key, value) => MapEntry(key, Meal.fromMap(value)));
+    }
+
+    // Helper to parse exercise plan
+    Map<String, List<Exercise>>? parseExercisePlan(
+      Map<String, dynamic>? exerciseMap,
+    ) {
+      if (exerciseMap == null) return null;
+      return exerciseMap.map(
+        (key, value) => MapEntry(
+          key,
+          (value as List).map((e) => Exercise.fromMap(e)).toList(),
+        ),
+      );
+    }
+
     return UserConfig(
+      userId: map['userId'],
+      goalType: map['goalType'] ?? 'general_wellness',
+      goalTitle: map['goalTitle'] ?? 'Fitness Goal',
+      targetDescription:
+          map['targetDescription'] ?? 'Achieve your fitness goals',
       age: map['age'] ?? 25,
       gender: Gender.values.firstWhere(
         (g) => g.toString() == 'Gender.${map['gender']}',
@@ -76,7 +132,27 @@ class UserConfig {
         (a) => a.toString() == 'ActivityLevel.${map['activityLevel']}',
         orElse: () => ActivityLevel.moderatelyActive,
       ),
-      preferredWorkoutTypes: List<String>.from(map['preferredWorkoutTypes'] ?? []),
+      dietPlan: parseDietPlan(map['dietPlan']),
+      exercisePlan: parseExercisePlan(map['exercisePlan']),
+      waterGoal: map['waterGoal'],
+      sleepSchedule: map['sleepSchedule'] != null
+          ? Map<String, String>.from(map['sleepSchedule'])
+          : null,
+      mentalHealthPractices: map['mentalHealthPractices'] != null
+          ? (map['mentalHealthPractices'] as List)
+                .map((p) => MentalHealthPractice.fromMap(p))
+                .toList()
+          : null,
+      reminders: map['reminders'] != null
+          ? (map['reminders'] as List).map((r) => Reminder.fromMap(r)).toList()
+          : [],
+      uiConfig: map['uiConfig'] != null
+          ? UIConfig.fromMap(map['uiConfig'])
+          : null,
+      motivationalMessage: map['motivationalMessage'] ?? 'Stay active!',
+      preferredWorkoutTypes: List<String>.from(
+        map['preferredWorkoutTypes'] ?? [],
+      ),
       dietaryRestrictions: List<String>.from(map['dietaryRestrictions'] ?? []),
       allergies: List<String>.from(map['allergies'] ?? []),
       workoutDaysPerWeek: map['workoutDaysPerWeek'] ?? 3,
@@ -93,12 +169,28 @@ class UserConfig {
 
   Map<String, dynamic> toMap() {
     return {
+      'userId': userId,
+      'goalType': goalType,
+      'goalTitle': goalTitle,
+      'targetDescription': targetDescription,
       'age': age,
       'gender': gender.toString().split('.').last,
       'height': height,
       'weight': weight,
       'fitnessGoal': fitnessGoal.toString().split('.').last,
       'activityLevel': activityLevel.toString().split('.').last,
+      'dietPlan': dietPlan?.map((key, value) => MapEntry(key, value.toMap())),
+      'exercisePlan': exercisePlan?.map(
+        (key, value) => MapEntry(key, value.map((e) => e.toMap()).toList()),
+      ),
+      'waterGoal': waterGoal,
+      'sleepSchedule': sleepSchedule,
+      'mentalHealthPractices': mentalHealthPractices
+          ?.map((p) => p.toMap())
+          .toList(),
+      'reminders': reminders.map((r) => r.toMap()).toList(),
+      'uiConfig': uiConfig?.toMap(),
+      'motivationalMessage': motivationalMessage,
       'preferredWorkoutTypes': preferredWorkoutTypes,
       'dietaryRestrictions': dietaryRestrictions,
       'allergies': allergies,
@@ -115,12 +207,24 @@ class UserConfig {
   }
 
   UserConfig copyWith({
+    String? userId,
+    String? goalType,
+    String? goalTitle,
+    String? targetDescription,
     int? age,
     Gender? gender,
     double? height,
     double? weight,
     FitnessGoal? fitnessGoal,
     ActivityLevel? activityLevel,
+    Map<String, Meal>? dietPlan,
+    Map<String, List<Exercise>>? exercisePlan,
+    int? waterGoal,
+    Map<String, String>? sleepSchedule,
+    List<MentalHealthPractice>? mentalHealthPractices,
+    List<Reminder>? reminders,
+    UIConfig? uiConfig,
+    String? motivationalMessage,
     List<String>? preferredWorkoutTypes,
     List<String>? dietaryRestrictions,
     List<String>? allergies,
@@ -133,21 +237,38 @@ class UserConfig {
     DateTime? lastUpdated,
   }) {
     return UserConfig(
+      userId: userId ?? this.userId,
+      goalType: goalType ?? this.goalType,
+      goalTitle: goalTitle ?? this.goalTitle,
+      targetDescription: targetDescription ?? this.targetDescription,
       age: age ?? this.age,
       gender: gender ?? this.gender,
       height: height ?? this.height,
       weight: weight ?? this.weight,
       fitnessGoal: fitnessGoal ?? this.fitnessGoal,
       activityLevel: activityLevel ?? this.activityLevel,
-      preferredWorkoutTypes: preferredWorkoutTypes ?? this.preferredWorkoutTypes,
+      dietPlan: dietPlan ?? this.dietPlan,
+      exercisePlan: exercisePlan ?? this.exercisePlan,
+      waterGoal: waterGoal ?? this.waterGoal,
+      sleepSchedule: sleepSchedule ?? this.sleepSchedule,
+      mentalHealthPractices:
+          mentalHealthPractices ?? this.mentalHealthPractices,
+      reminders: reminders ?? this.reminders,
+      uiConfig: uiConfig ?? this.uiConfig,
+      motivationalMessage: motivationalMessage ?? this.motivationalMessage,
+      preferredWorkoutTypes:
+          preferredWorkoutTypes ?? this.preferredWorkoutTypes,
       dietaryRestrictions: dietaryRestrictions ?? this.dietaryRestrictions,
       allergies: allergies ?? this.allergies,
       workoutDaysPerWeek: workoutDaysPerWeek ?? this.workoutDaysPerWeek,
-      workoutMinutesPerSession: workoutMinutesPerSession ?? this.workoutMinutesPerSession,
+      workoutMinutesPerSession:
+          workoutMinutesPerSession ?? this.workoutMinutesPerSession,
       enableNotifications: enableNotifications ?? this.enableNotifications,
-      enableWorkoutReminders: enableWorkoutReminders ?? this.enableWorkoutReminders,
+      enableWorkoutReminders:
+          enableWorkoutReminders ?? this.enableWorkoutReminders,
       enableMealReminders: enableMealReminders ?? this.enableMealReminders,
-      enableHydrationReminders: enableHydrationReminders ?? this.enableHydrationReminders,
+      enableHydrationReminders:
+          enableHydrationReminders ?? this.enableHydrationReminders,
       lastUpdated: lastUpdated ?? this.lastUpdated,
     );
   }
@@ -188,7 +309,7 @@ class UserConfig {
       ActivityLevel.veryActive => 1.725,
       ActivityLevel.extremelyActive => 1.9,
     };
-    
+
     return bmr * activityMultiplier;
   }
 
@@ -220,18 +341,11 @@ class UserConfig {
 
   @override
   int get hashCode {
-    return Object.hash(
-      age,
-      gender,
-      height,
-      weight,
-      fitnessGoal,
-      activityLevel,
-    );
+    return Object.hash(age, gender, height, weight, fitnessGoal, activityLevel);
   }
 
   @override
   String toString() {
-    return 'UserConfig(age: $age, gender: $gender, height: $height, weight: $weight, fitnessGoal: $fitnessGoal, activityLevel: $activityLevel)';
+    return 'UserConfig(goalTitle: $goalTitle, goalType: $goalType)';
   }
 }

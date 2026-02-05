@@ -4,18 +4,17 @@ import '../../models/user_config.dart';
 import '../../models/exercise.dart';
 import '../../models/meal.dart';
 import '../../models/reminder.dart';
+import '../../models/workout.dart';
+import '../../models/meal_plan.dart';
 import '../../core/constants/app_constants.dart';
 
 class FirestoreService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final CollectionReference _usersCollection = 
-      FirebaseFirestore.instance.collection(AppConstants.usersCollection);
-  final CollectionReference _workoutsCollection = 
-      FirebaseFirestore.instance.collection(AppConstants.workoutsCollection);
-  final CollectionReference _mealsCollection = 
-      FirebaseFirestore.instance.collection(AppConstants.mealsCollection);
-  final CollectionReference _remindersCollection = 
-      FirebaseFirestore.instance.collection(AppConstants.remindersCollection);
+  final CollectionReference _usersCollection = FirebaseFirestore.instance
+      .collection(AppConstants.usersCollection);
+  final CollectionReference _workoutsCollection = FirebaseFirestore.instance
+      .collection(AppConstants.workoutsCollection);
+  final CollectionReference _mealsCollection = FirebaseFirestore.instance
+      .collection(AppConstants.mealsCollection);
 
   // User Profile Methods
   Future<UserProfile?> getUserProfile(String userId) async {
@@ -60,7 +59,9 @@ class FirestoreService {
       final doc = await _usersCollection.doc(userId).get();
       if (doc.exists) {
         final data = doc.data() as Map<String, dynamic>?;
-        return data?['config'] != null ? UserConfig.fromMap(data!['config']) : null;
+        return data?['config'] != null
+            ? UserConfig.fromMap(data!['config'])
+            : null;
       }
       return null;
     } catch (e) {
@@ -70,9 +71,7 @@ class FirestoreService {
 
   Future<void> createUserConfig(String userId, UserConfig config) async {
     try {
-      await _usersCollection.doc(userId).update({
-        'config': config.toMap(),
-      });
+      await _usersCollection.doc(userId).update({'config': config.toMap()});
     } catch (e) {
       throw 'Failed to create user config: ${e.toString()}';
     }
@@ -80,9 +79,7 @@ class FirestoreService {
 
   Future<void> updateUserConfig(String userId, UserConfig config) async {
     try {
-      await _usersCollection.doc(userId).update({
-        'config': config.toMap(),
-      });
+      await _usersCollection.doc(userId).update({'config': config.toMap()});
     } catch (e) {
       throw 'Failed to update user config: ${e.toString()}';
     }
@@ -101,15 +98,23 @@ class FirestoreService {
           .limit(limit);
 
       if (difficulty != null) {
-        query = query.where('difficulty', isEqualTo: difficulty.toString().split('.').last);
+        query = query.where(
+          'difficulty',
+          isEqualTo: difficulty.toString().split('.').last,
+        );
       }
 
       if (muscleGroup != null) {
-        query = query.where('primaryMuscles', arrayContains: muscleGroup.toString().split('.').last);
+        query = query.where(
+          'primaryMuscles',
+          arrayContains: muscleGroup.toString().split('.').last,
+        );
       }
 
       final querySnapshot = await query.get();
-      return querySnapshot.docs.map((doc) => Exercise.fromFirestore(doc)).toList();
+      return querySnapshot.docs
+          .map((doc) => Exercise.fromFirestore(doc))
+          .toList();
     } catch (e) {
       throw 'Failed to get exercises: ${e.toString()}';
     }
@@ -145,7 +150,9 @@ class FirestoreService {
           .doc(userId)
           .collection('savedExercises')
           .get();
-      return querySnapshot.docs.map((doc) => Exercise.fromFirestore(doc)).toList();
+      return querySnapshot.docs
+          .map((doc) => Exercise.fromFirestore(doc))
+          .toList();
     } catch (e) {
       throw 'Failed to get saved exercises: ${e.toString()}';
     }
@@ -183,7 +190,9 @@ class FirestoreService {
           .collection('workouts')
           .orderBy('createdAt', descending: true)
           .get();
-      return querySnapshot.docs.map((doc) => Workout.fromFirestore(doc)).toList();
+      return querySnapshot.docs
+          .map((doc) => Workout.fromFirestore(doc))
+          .toList();
     } catch (e) {
       throw 'Failed to get workouts: ${e.toString()}';
     }
@@ -211,11 +220,17 @@ class FirestoreService {
       Query query = _mealsCollection.limit(limit);
 
       if (type != null) {
-        query = query.where('mealType', isEqualTo: type.toString().split('.').last);
+        query = query.where(
+          'mealType',
+          isEqualTo: type.toString().split('.').last,
+        );
       }
 
       if (category != null) {
-        query = query.where('categories', arrayContains: category.toString().split('.').last);
+        query = query.where(
+          'categories',
+          arrayContains: category.toString().split('.').last,
+        );
       }
 
       final querySnapshot = await query.get();
@@ -292,7 +307,9 @@ class FirestoreService {
           .collection('mealPlans')
           .orderBy('date', descending: true)
           .get();
-      return querySnapshot.docs.map((doc) => MealPlan.fromFirestore(doc)).toList();
+      return querySnapshot.docs
+          .map((doc) => MealPlan.fromFirestore(doc))
+          .toList();
     } catch (e) {
       throw 'Failed to get meal plans: ${e.toString()}';
     }
@@ -318,7 +335,9 @@ class FirestoreService {
           .collection('reminders')
           .orderBy('time')
           .get();
-      return querySnapshot.docs.map((doc) => Reminder.fromFirestore(doc)).toList();
+      return querySnapshot.docs
+          .map((doc) => Reminder.fromFirestore(doc))
+          .toList();
     } catch (e) {
       throw 'Failed to get reminders: ${e.toString()}';
     }
@@ -349,15 +368,15 @@ class FirestoreService {
   }
 
   // Activity Tracking Methods
-  Future<void> logWorkout(String userId, Map<String, dynamic> workoutData) async {
+  Future<void> logWorkout(
+    String userId,
+    Map<String, dynamic> workoutData,
+  ) async {
     try {
-      await _usersCollection
-          .doc(userId)
-          .collection('workoutLogs')
-          .add({
-            ...workoutData,
-            'timestamp': Timestamp.now(),
-          });
+      await _usersCollection.doc(userId).collection('workoutLogs').add({
+        ...workoutData,
+        'timestamp': Timestamp.now(),
+      });
     } catch (e) {
       throw 'Failed to log workout: ${e.toString()}';
     }
@@ -365,19 +384,20 @@ class FirestoreService {
 
   Future<void> logMeal(String userId, Map<String, dynamic> mealData) async {
     try {
-      await _usersCollection
-          .doc(userId)
-          .collection('mealLogs')
-          .add({
-            ...mealData,
-            'timestamp': Timestamp.now(),
-          });
+      await _usersCollection.doc(userId).collection('mealLogs').add({
+        ...mealData,
+        'timestamp': Timestamp.now(),
+      });
     } catch (e) {
       throw 'Failed to log meal: ${e.toString()}';
     }
   }
 
-  Future<List<Map<String, dynamic>>> getWorkoutLogs(String userId, {DateTime? startDate, DateTime? endDate}) async {
+  Future<List<Map<String, dynamic>>> getWorkoutLogs(
+    String userId, {
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
     try {
       Query query = _usersCollection
           .doc(userId)
@@ -385,21 +405,33 @@ class FirestoreService {
           .orderBy('timestamp', descending: true);
 
       if (startDate != null) {
-        query = query.where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate));
+        query = query.where(
+          'timestamp',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+        );
       }
 
       if (endDate != null) {
-        query = query.where('timestamp', isLessThanOrEqualTo: Timestamp.fromDate(endDate));
+        query = query.where(
+          'timestamp',
+          isLessThanOrEqualTo: Timestamp.fromDate(endDate),
+        );
       }
 
       final querySnapshot = await query.get();
-      return querySnapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
+      return querySnapshot.docs
+          .map((doc) => doc.data() as Map<String, dynamic>)
+          .toList();
     } catch (e) {
       throw 'Failed to get workout logs: ${e.toString()}';
     }
   }
 
-  Future<List<Map<String, dynamic>>> getMealLogs(String userId, {DateTime? startDate, DateTime? endDate}) async {
+  Future<List<Map<String, dynamic>>> getMealLogs(
+    String userId, {
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
     try {
       Query query = _usersCollection
           .doc(userId)
@@ -407,22 +439,33 @@ class FirestoreService {
           .orderBy('timestamp', descending: true);
 
       if (startDate != null) {
-        query = query.where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate));
+        query = query.where(
+          'timestamp',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+        );
       }
 
       if (endDate != null) {
-        query = query.where('timestamp', isLessThanOrEqualTo: Timestamp.fromDate(endDate));
+        query = query.where(
+          'timestamp',
+          isLessThanOrEqualTo: Timestamp.fromDate(endDate),
+        );
       }
 
       final querySnapshot = await query.get();
-      return querySnapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
+      return querySnapshot.docs
+          .map((doc) => doc.data() as Map<String, dynamic>)
+          .toList();
     } catch (e) {
       throw 'Failed to get meal logs: ${e.toString()}';
     }
   }
 
   // Settings Methods
-  Future<void> saveNotificationSettings(String userId, Map<String, dynamic> settings) async {
+  Future<void> saveNotificationSettings(
+    String userId,
+    Map<String, dynamic> settings,
+  ) async {
     try {
       await _usersCollection.doc(userId).update({
         'notificationSettings': settings,
@@ -481,8 +524,9 @@ class FirestoreService {
         .collection('reminders')
         .orderBy('time')
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Reminder.fromFirestore(doc))
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => Reminder.fromFirestore(doc)).toList(),
+        );
   }
 }

@@ -10,6 +10,7 @@ import 'providers/onboarding_provider.dart';
 import 'services/firebase/auth_service.dart';
 import 'services/firebase/firestore_service.dart';
 import 'services/api/ai_service.dart';
+import 'services/api/conversation_manager.dart';
 import 'services/local/shared_prefs_service.dart';
 import 'screens/splash/splash_screen.dart';
 import 'screens/auth/login_screen.dart';
@@ -17,9 +18,11 @@ import 'screens/auth/signup_screen.dart';
 import 'screens/onboarding/onboarding_slides_screen.dart';
 import 'screens/onboarding/ai_chat_screen.dart';
 import 'screens/onboarding/plan_summary_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: "assets/.env");
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await SharedPrefsService.init();
   runApp(const FitlyApp());
@@ -37,6 +40,7 @@ class FitlyApp extends StatelessWidget {
         Provider<FirestoreService>(create: (_) => FirestoreService()),
         Provider<AiService>(create: (_) => AiService()),
         Provider<SharedPrefsService>(create: (_) => SharedPrefsService()),
+        Provider<ConversationManager>(create: (_) => ConversationManager()),
 
         // Providers
         ChangeNotifierProvider<AuthProvider>(
@@ -55,6 +59,7 @@ class FitlyApp extends StatelessWidget {
           create: (context) => OnboardingProvider(
             userProvider: context.read<UserProvider>(),
             aiService: context.read<AiService>(),
+            conversationManager: context.read<ConversationManager>(),
           ),
         ),
       ],
