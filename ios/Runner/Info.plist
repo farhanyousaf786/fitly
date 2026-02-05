@@ -45,5 +45,10 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Permissions for voice input -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Fitly needs access to your microphone to listen to your fitness goals and create a personalized plan.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Fitly uses speech recognition to understand your fitness goals and preferences.</string>
 </dict>
 </plist>

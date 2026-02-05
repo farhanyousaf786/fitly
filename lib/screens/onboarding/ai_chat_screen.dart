@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:permission_handler/permission_handler.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/text_styles.dart';
 import '../../providers/onboarding_provider.dart';
@@ -20,6 +22,9 @@ class _AiChatScreenState extends State<AiChatScreen>
   bool _isAiTyping = false;
   bool _isRecording = false;
   late AnimationController _pulseController;
+  late stt.SpeechToText _speech;
+  bool _speechAvailable = false;
+  String _currentWords = '';
 
   @override
   void initState() {
@@ -28,6 +33,27 @@ class _AiChatScreenState extends State<AiChatScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
+    _initSpeech();
+  }
+
+  Future<void> _initSpeech() async {
+    _speech = stt.SpeechToText();
+    _speechAvailable = await _speech.initialize(
+      onError: (error) {
+        debugPrint('Speech recognition error: $error');
+        setState(() => _isRecording = false);
+      },
+      onStatus: (status) {
+        debugPrint('Speech recognition status: $status');
+        if (status == 'done' || status == 'notListening') {
+          setState(() => _isRecording = false);
+          if (_currentWords.isNotEmpty) {
+            _sendMessage(_currentWords);
+            _currentWords = '';
+          }
+        }
+      },
+    );
   }
 
   @override
@@ -35,6 +61,7 @@ class _AiChatScreenState extends State<AiChatScreen>
     _messageController.dispose();
     _scrollController.dispose();
     _pulseController.dispose();
+    _speech.stop();
     super.dispose();
   }
 
@@ -91,7 +118,6 @@ class _AiChatScreenState extends State<AiChatScreen>
   }
 
   String _getMockAiResponse(String userMessage) {
-    // This is a mock response - replace with real AI API
     if (_messages.length <= 2) {
       return "Perfect! Tell me more:\n\n"
           "• What's your current weight and height?\n"
@@ -140,11 +166,59 @@ class _AiChatScreenState extends State<AiChatScreen>
     });
   }
 
-  void _toggleVoiceInput() {
-    setState(() => _isRecording = !_isRecording);
-
-    // TODO: Implement actual voice recording
+  Future<void> _toggleVoiceInput() async {
     if (_isRecording) {
+      // Stop recording
+      await _speech.stop();
+      setState(() => _isRecording = false);
+      return;
+    }
+
+    // Check microphone permission
+    final status = await Permission.microphone.request();
+    if (!status.isGranted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Microphone permission is required for voice input',
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!_speechAvailable) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Speech recognition is not available on this device',
+            ),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Start recording
+    setState(() {
+      _isRecording = true;
+      _currentWords = '';
+    });
+
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('🎤 Listening... Speak now!'),
@@ -153,18 +227,23 @@ class _AiChatScreenState extends State<AiChatScreen>
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          duration: const Duration(seconds: 3),
+          duration: const Duration(seconds: 2),
         ),
       );
-
-      // Simulate voice input after 3 seconds
-      Future.delayed(const Duration(seconds: 3), () {
-        if (_isRecording) {
-          setState(() => _isRecording = false);
-          _sendMessage("I'm 28 years old, want to lose weight and get fit!");
-        }
-      });
     }
+
+    await _speech.listen(
+      onResult: (result) {
+        setState(() {
+          _currentWords = result.recognizedWords;
+        });
+      },
+      listenFor: const Duration(seconds: 30),
+      pauseFor: const Duration(seconds: 3),
+      partialResults: true,
+      cancelOnError: true,
+      listenMode: stt.ListenMode.confirmation,
+    );
   }
 
   @override
