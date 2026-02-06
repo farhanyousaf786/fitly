@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:permission_handler/permission_handler.dart';
@@ -8,6 +9,7 @@ import '../../providers/onboarding_provider.dart';
 import '../../widgets/chat/chat_message_bubble.dart';
 import '../../widgets/chat/typing_indicator.dart';
 import '../../widgets/chat/quick_suggestion_chips.dart';
+import '../../widgets/chat/compact_data_tracker.dart';
 
 class AiChatScreen extends StatefulWidget {
   const AiChatScreen({super.key});
@@ -23,6 +25,7 @@ class _AiChatScreenState extends State<AiChatScreen>
   late stt.SpeechToText _speech;
   bool _isSpeaking = false;
   late AnimationController _pulseController;
+  int _voiceWordCount = 0;
 
   @override
   void initState() {
@@ -59,19 +62,43 @@ class _AiChatScreenState extends State<AiChatScreen>
     });
   }
 
-  Future<void> _handleVoiceInput() async {
+  Future<void> _toggleVoiceInput() async {
+    if (_isSpeaking) {
+      // Stop recording
+      await _stopVoiceInput();
+    } else {
+      // Start recording
+      await _startVoiceInput();
+    }
+  }
+
+  Future<void> _startVoiceInput() async {
     final status = await Permission.microphone.request();
     if (!status.isGranted) return;
 
     bool available = await _speech.initialize();
     if (available) {
-      setState(() => _isSpeaking = true);
+      setState(() {
+        _isSpeaking = true;
+        _voiceWordCount = 0;
+        _messageController.clear();
+      });
       _speech.listen(
         onResult: (result) {
           setState(() {
             _messageController.text = result.recognizedWords;
+            
+            // Count words and auto-stop after 6 words
+            final wordCount = result.recognizedWords.trim().split(RegExp(r'\s+')).length;
+            _voiceWordCount = wordCount;
+            
+            if (wordCount >= 6 && result.finalResult) {
+              _stopVoiceInput();
+            }
           });
         },
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(milliseconds: 500),
       );
     }
   }
@@ -112,14 +139,23 @@ class _AiChatScreenState extends State<AiChatScreen>
                 Expanded(
                   child: ListView.builder(
                     controller: _scrollController,
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     itemCount:
                         provider.chatMessages.length +
-                        (provider.isChatLoading ? 1 : 0),
+                        (provider.isChatLoading ? 1 : 0) +
+                        1,
                     itemBuilder: (context, index) {
-                      if (index < provider.chatMessages.length) {
+                      if (index == 0) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 40, bottom: 20),
+                          child: _buildWelcomeHero(),
+                        );
+                      }
+
+                      final messageIndex = index - 1;
+                      if (messageIndex < provider.chatMessages.length) {
                         return ChatMessageBubble(
-                          message: provider.chatMessages[index],
+                          message: provider.chatMessages[messageIndex],
                         );
                       } else {
                         return const TypingIndicator();
@@ -127,15 +163,18 @@ class _AiChatScreenState extends State<AiChatScreen>
                     },
                   ),
                 ),
-                if (provider.chatMessages.length == 1 &&
+                // Show suggestions initially or after first AI message
+                if ((provider.chatMessages.isEmpty ||
+                        (provider.chatMessages.length == 1 &&
+                            !provider.chatMessages[0].isUser)) &&
                     !provider.isChatLoading)
                   QuickSuggestionChips(
                     suggestions: const [
-                      "Lose belly fat",
-                      "Build muscle",
-                      "Get healthier",
-                      "Better sleep",
-                      "More energy",
+                      "Weight Loss ⚖️",
+                      "Depression/Stress 🧘",
+                      "Muscle Gain 💪",
+                      "Sleep Better 😴",
+                      "Healthy Diet 🥗",
                     ],
                     onSelected: (text) {
                       _messageController.text = text;
@@ -148,6 +187,63 @@ class _AiChatScreenState extends State<AiChatScreen>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildWelcomeHero() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TweenAnimationBuilder<double>(
+            duration: const Duration(seconds: 1),
+            tween: Tween(begin: 0.0, end: 1.0),
+            builder: (context, value, child) {
+              return Opacity(
+                opacity: value,
+                child: Transform.translate(
+                  offset: Offset(0, 20 * (1 - value)),
+                  child: child,
+                ),
+              );
+            },
+            child: Text(
+              "Hi, I am Fitly 👋",
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textPrimary.withOpacity(0.6),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 1200),
+            curve: Curves.elasticOut,
+            tween: Tween(begin: 0.0, end: 1.0),
+            builder: (context, value, child) {
+              return Opacity(
+                opacity: value.clamp(0.0, 1.0),
+                child: Transform.scale(
+                  scale: 0.5 + (0.5 * value),
+                  child: child,
+                ),
+              );
+            },
+            child: Text(
+              "Tell Me\nYour Story",
+              textAlign: TextAlign.center,
+              style: AppTextStyles.h1.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w900,
+                fontSize: 48,
+                height: 1.0,
+                letterSpacing: -2,
+              ),
+            ),
+          ),
+          const SizedBox(height: 40),
+        ],
+      ),
     );
   }
 
@@ -235,147 +331,164 @@ class _AiChatScreenState extends State<AiChatScreen>
   }
 
   Widget _buildCollectedInfoTracker(OnboardingProvider provider) {
-    final count = provider.infoCollectedCount;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withOpacity(0.1)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "Collected Info: $count/6",
-                style: AppTextStyles.bodyMedium.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              SizedBox(
-                width: 100,
-                child: LinearProgressIndicator(
-                  value: count / 6,
-                  backgroundColor: AppColors.primary.withOpacity(0.1),
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                    AppColors.primary,
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ],
-          ),
-          if (count >= 1) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: [
-                _buildInfoTag("✓ Goal"),
-                if (provider.extractedData.currentSituation != null)
-                  _buildInfoTag("✓ Habits"),
-                if (provider.extractedData.lifestyle != null)
-                  _buildInfoTag("✓ Lifestyle"),
-                if (provider.extractedData.schedule != null)
-                  _buildInfoTag("✓ Schedule"),
-                if (provider.extractedData.age != null)
-                  _buildInfoTag("✓ Stats"),
-                if (provider.extractedData.healthIssues != null)
-                  _buildInfoTag("✓ Health"),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
+    // Only show tracker after user provides first message
+    final hasUserMessage = provider.chatMessages.any((msg) => msg.isUser);
+    
+    if (!hasUserMessage) {
+      return const SizedBox.shrink();
+    }
 
-  Widget _buildInfoTag(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.primary.withOpacity(0.2)),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(fontSize: 10, color: AppColors.primary),
-      ),
+    return Column(
+      children: [
+        CompactDataTracker(
+          extractedData: provider.extractedData,
+        ),
+        if (kDebugMode)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.amber.withOpacity(0.3), width: 0.5),
+              ),
+              child: Text(
+                "Cost: \$${provider.totalCost.toStringAsFixed(4)}",
+                style: const TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.amber,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
   Widget _buildInputArea() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF3F4F6),
-                borderRadius: BorderRadius.circular(25),
-              ),
-              child: TextField(
-                controller: _messageController,
-                decoration: const InputDecoration(
-                  hintText: "Talk to Fitly...",
-                  border: InputBorder.none,
+    return Column(
+      children: [
+        if (_isSpeaking)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.red.withOpacity(0.3)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Listening... $_voiceWordCount/6 words",
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: Colors.red,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
-                onSubmitted: (_) => _sendMessage(),
+                if (_voiceWordCount >= 6)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      "Auto-stopping...",
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: const Color(0xFF10B981),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, -2),
               ),
-            ),
+            ],
           ),
-          const SizedBox(width: 12),
-          GestureDetector(
-            onLongPress: _handleVoiceInput,
-            onLongPressUp: _stopVoiceInput,
-            child: AnimatedBuilder(
-              animation: _pulseController,
-              builder: (context, child) {
-                return Container(
-                  padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
-                    color: _isSpeaking ? Colors.red : AppColors.primary,
-                    shape: BoxShape.circle,
-                    boxShadow: _isSpeaking
-                        ? [
-                            BoxShadow(
-                              color: Colors.red.withOpacity(0.4),
-                              blurRadius: 10 * _pulseController.value,
-                              spreadRadius: 5 * _pulseController.value,
-                            ),
-                          ]
-                        : null,
+                    color: const Color(0xFFF3F4F6),
+                    borderRadius: BorderRadius.circular(25),
                   ),
-                  child: Icon(
-                    _isSpeaking ? Icons.mic : Icons.mic_none,
-                    color: Colors.white,
+                  child: TextField(
+                    controller: _messageController,
+                    decoration: InputDecoration(
+                      hintText: _isSpeaking ? "Recording..." : "Talk to Fitly...",
+                      border: InputBorder.none,
+                    ),
+                    onSubmitted: (_) => _sendMessage(),
                   ),
-                );
-              },
-            ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: _toggleVoiceInput,
+                child: AnimatedBuilder(
+                  animation: _pulseController,
+                  builder: (context, child) {
+                    return Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _isSpeaking ? Colors.red : AppColors.primary,
+                        shape: BoxShape.circle,
+                        boxShadow: _isSpeaking
+                            ? [
+                                BoxShadow(
+                                  color: Colors.red.withOpacity(0.4),
+                                  blurRadius: 10 * _pulseController.value,
+                                  spreadRadius: 5 * _pulseController.value,
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Icon(
+                        _isSpeaking ? Icons.mic : Icons.mic_none,
+                        color: Colors.white,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.send, color: AppColors.primary),
+                onPressed: _sendMessage,
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.send, color: AppColors.primary),
-            onPressed: _sendMessage,
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

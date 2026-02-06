@@ -6,6 +6,7 @@ import '../../core/constants/colors.dart';
 import '../../core/constants/text_styles.dart';
 import '../../core/utils/validators.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/onboarding_provider.dart';
 import '../../widgets/common/custom_button.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -60,6 +61,21 @@ class _SignupScreenState extends State<SignupScreen> {
       );
 
       if (success && mounted) {
+        final userId = authProvider.currentUserId;
+        if (userId != null) {
+          final onboardingProvider = context.read<OnboardingProvider>();
+          if (onboardingProvider.userConfig != null) {
+            await onboardingProvider.savePlanToFirebase(userId);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('✓ Account created & Plan saved!'),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            }
+          }
+        }
         _showVerificationDialog();
       }
     } finally {
@@ -77,6 +93,21 @@ class _SignupScreenState extends State<SignupScreen> {
       final success = await authProvider.signInWithGoogle();
 
       if (success && mounted) {
+        final userId = authProvider.currentUserId;
+        if (userId != null) {
+          final onboardingProvider = context.read<OnboardingProvider>();
+          if (onboardingProvider.userConfig != null) {
+            await onboardingProvider.savePlanToFirebase(userId);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('✓ Signed in & Plan saved!'),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            }
+          }
+        }
         Navigator.of(
           context,
         ).pushNamedAndRemoveUntil('/home', (route) => false);

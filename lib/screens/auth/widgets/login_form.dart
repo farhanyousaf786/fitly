@@ -4,6 +4,7 @@ import '../../../../core/constants/colors.dart';
 import '../../../../core/constants/text_styles.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/onboarding_provider.dart';
 import '../../../widgets/common/custom_button.dart';
 
 class LoginForm extends StatefulWidget {
@@ -36,7 +37,12 @@ class _LoginFormState extends State<LoginForm> {
     );
 
     if (success && mounted) {
-      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+      await _checkAndSavePendingPlan();
+      if (mounted) {
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil('/home', (route) => false);
+      }
     }
   }
 
@@ -45,7 +51,24 @@ class _LoginFormState extends State<LoginForm> {
     final success = await authProvider.signInWithGoogle();
 
     if (success && mounted) {
-      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+      await _checkAndSavePendingPlan();
+      if (mounted) {
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil('/home', (route) => false);
+      }
+    }
+  }
+
+  Future<void> _checkAndSavePendingPlan() async {
+    final onboardingProvider = context.read<OnboardingProvider>();
+    final authProvider = context.read<AuthProvider>();
+
+    if (onboardingProvider.userConfig != null) {
+      final userId = authProvider.currentUserId;
+      if (userId != null) {
+        await onboardingProvider.savePlanToFirebase(userId);
+      }
     }
   }
 

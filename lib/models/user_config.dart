@@ -162,7 +162,9 @@ class UserConfig {
       enableMealReminders: map['enableMealReminders'] ?? true,
       enableHydrationReminders: map['enableHydrationReminders'] ?? true,
       lastUpdated: map['lastUpdated'] != null
-          ? (map['lastUpdated'] as Timestamp).toDate()
+          ? (map['lastUpdated'] is Timestamp
+                ? (map['lastUpdated'] as Timestamp).toDate()
+                : DateTime.parse(map['lastUpdated']))
           : null,
     );
   }
@@ -200,9 +202,7 @@ class UserConfig {
       'enableWorkoutReminders': enableWorkoutReminders,
       'enableMealReminders': enableMealReminders,
       'enableHydrationReminders': enableHydrationReminders,
-      'lastUpdated': lastUpdated != null
-          ? Timestamp.fromDate(lastUpdated!)
-          : null,
+      'lastUpdated': lastUpdated?.toIso8601String(),
     };
   }
 

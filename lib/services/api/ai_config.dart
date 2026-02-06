@@ -1,34 +1,33 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class AiConfig {
-  static const String model = "gpt-4o-mini";
+  static String get model => dotenv.env['AI_MODEL'] ?? "gpt-4o-mini";
   static const int maxTokens = 200;
   static const double temperature = 0.7;
 
   static const String systemPrompt = """
-You are Fitly, a friendly and highly intelligent AI Health & Fitness Coach. 
-Your goal is to have a natural conversation with the user to understand their health/fitness needs and build a personalized plan.
+You are Fitly, a friendly AI Health Coach specializing in BOTH physical fitness AND mental wellness.
 
-CORE BEHAVIOR:
-1. FRIENDLY & CONVERSATIONAL: Talk like a supportive friend. Use emojis occasionally (👋, 💪, ✨).
-2. SHORT RESPONSES: Keep your messages to 2-3 sentences max.
-3. ONE QUESTION: Ask only ONE follow-up question at a time to keep it simple.
-4. NON-JUDGMENTAL: Be supportive regardless of the user's current state (anxiety, weight, habits).
-5. ADAPTIVE: You handle anything: weight loss, muscle gain, sleep, stress, injuries, or energy levels.
-
-DATA EXTRACTION:
-You MUST use the 'extract_user_info' function whenever the user provides new details. 
-Extract as much as possible from EVERY message. 
-If they say "I'm stressed and want to lose weight," extract both into 'currentSituation' and 'goal'.
-
-Required Info categories (Ask about these if missing):
-- Goal (Primary achievement)
-- Age & Gender (Helpful but don't obsess)
-- Current Situation (Diet, exercise, sleep, mental state)
-- Schedule (Work hours, sleep patterns)
-- Intensity (Do they want fast results or a slow pace?)
-- Health Issues (Injuries, pains, chronic issues)
-- Lifestyle (Job type, daily activity level)
-
-When you have enough info (at least Goal, Current Situation, and Lifestyle), casually mention that you are almost ready to build their plan.
+CORE RULES:
+1. COMPREHENSIVE COLLECTION: Gather info on BOTH physical (fitness, diet, exercise) AND mental (stress, sleep, mood, anxiety) health.
+2. MANDATORY CORE FIELDS: You MUST collect:
+   - Goal (what they want to achieve - physical OR mental OR both)
+   - Age & Gender
+   - Weight & Height (for physical metrics)
+   - Lifestyle (job type, daily activity)
+   - At least ONE detail from: fitness level, diet habits, mental health concerns, stress level, or sleep quality
+3. SMART QUESTIONING: Ask about their PRIMARY concern first, then explore related areas:
+   - If fitness goal → ask about current exercise, diet, schedule
+   - If mental health goal → ask about stress, sleep, mood, anxiety levels
+   - If general wellness → ask about both
+4. BE EFFICIENT: Combine questions when possible. Max 2-3 sentences per reply.
+5. EXTRACT ALL DATA IMMEDIATELY: IMPORTANT - Every time the user provides information, extract ALL available data from their response using the extract_user_info function. Do NOT wait. Extract:
+   - Any mentioned goal, age, gender, weight, height, lifestyle
+   - Any mentioned fitness level, diet, schedule, mental health, stress, sleep quality
+   - Extract EVERYTHING in one function call, not piece by piece
+6. RECOGNIZE READINESS: Once you have all 4 core fields (Goal, Personal Info, Physical Metrics, Lifestyle), say "I have everything I need!" and the plan will be generated.
+7. ALWAYS PROVIDE TEXT: Always reply with a friendly sentence, even when extracting data.
+8. HOLISTIC APPROACH: Remember that physical and mental health are connected. A fitness plan might include stress relief, and a mental health plan might include exercise.
 """;
 
   static const String recommendationPrompt = """
@@ -46,14 +45,14 @@ Focus on:
     {
       "name": "extract_user_info",
       "description":
-          "Extracts structured health and fitness information from user conversation.",
+          "Extracts comprehensive health and fitness information covering both physical and mental wellness.",
       "parameters": {
         "type": "object",
         "properties": {
           "goal": {
             "type": "string",
             "description":
-                "What they want to achieve (e.g., lose 5kg, build muscle, fix sleep, reduce anxiety)",
+                "Primary goal (e.g., lose 5kg, build muscle, reduce anxiety, better sleep, general wellness)",
           },
           "age": {"type": "integer", "description": "The user's age"},
           "gender": {
@@ -63,28 +62,58 @@ Focus on:
           },
           "weight": {"type": "number", "description": "Current weight in kg"},
           "height": {"type": "number", "description": "Current height in cm"},
+          "lifestyle": {
+            "type": "string",
+            "description": "Job type, daily activity levels, work schedule",
+          },
           "currentSituation": {
             "type": "string",
             "description":
-                "Detailed notes on current habits, eating, exercise, or mental state",
+                "Current habits: eating patterns, exercise routine, daily activities",
           },
           "schedule": {
             "type": "string",
-            "description": "When they wake up, work, and sleep",
+            "description": "Daily schedule: wake time, work hours, sleep time",
           },
           "intensity": {
             "type": "string",
-            "description": "Preferred pace (fast vs sustainable)",
+            "description": "Preferred workout intensity and pace (light, moderate, intense, sustainable vs fast)",
+          },
+          "mentalHealthConcerns": {
+            "type": "string",
+            "description":
+                "Mental health goals or concerns (e.g., reduce anxiety, manage depression, improve focus)",
+          },
+          "stressLevel": {
+            "type": "string",
+            "description": "Current stress level and main stressors (low, moderate, high)",
+          },
+          "sleepQuality": {
+            "type": "string",
+            "description": "Sleep quality and patterns (hours per night, sleep issues)",
+          },
+          "moodPatterns": {
+            "type": "string",
+            "description": "Mood patterns and emotional state throughout the day",
+          },
+          "anxietyLevel": {
+            "type": "string",
+            "description": "Anxiety level and triggers (if applicable)",
           },
           "healthIssues": {
             "type": "string",
-            "description": "Injuries, pains, or mental health concerns",
+            "description": "Any injuries, chronic conditions, or health concerns",
           },
-          "lifestyle": {
+          "injuries": {
             "type": "string",
-            "description": "Job type, daily activity levels",
+            "description": "Current or past injuries that affect exercise",
+          },
+          "allergies": {
+            "type": "string",
+            "description": "Food allergies or dietary restrictions",
           },
         },
+        "required": ["goal", "age", "gender", "weight", "height", "lifestyle"],
       },
     },
     {
