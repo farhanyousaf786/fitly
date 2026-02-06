@@ -5,6 +5,8 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:permission_handler/permission_handler.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/text_styles.dart';
+import '../../services/api/ai_config.dart';
+import '../../services/api/ai_service.dart';
 import '../../providers/onboarding_provider.dart';
 import '../../widgets/chat/chat_message_bubble.dart';
 import '../../widgets/chat/typing_indicator.dart';
@@ -111,13 +113,203 @@ class _AiChatScreenState extends State<AiChatScreen>
     }
   }
 
-  void _sendMessage() {
+  void _sendMessage() async {
     final text = _messageController.text;
     if (text.trim().isEmpty) return;
 
-    context.read<OnboardingProvider>().sendChatMessage(text);
+    final provider = context.read<OnboardingProvider>();
+    
+    // Add user message to chat
+    provider.addMessage(
+      text: text,
+      isUser: true,
+    );
     _messageController.clear();
     _scrollToBottom();
+    
+    // STEP 1: Collect Goal + Description first
+    if (provider.extractedData.goal == null) {
+      print("🎯 [CHAT_SCREEN] STEP 1: Collecting Goal + Description");
+      print("📝 [CHAT_SCREEN] USER INPUT: $text");
+      
+      try {
+        final aiService = AiService();
+        final response = await aiService.getResponse(
+          history: [
+            {"role": "user", "content": text}
+          ],
+          currentData: provider.extractedData.toJson(),
+          extractionStatus: {},
+          customSystemPrompt: AiConfig.extractGoalPrompt,
+        );
+        
+        print("✅ [CHAT_SCREEN] AI RESPONSE: ${response.text}");
+        print("📊 [CHAT_SCREEN] EXTRACTED DATA: ${response.extractedData}");
+        
+        // Save goal and description
+        if (response.extractedData != null) {
+          provider.extractedData.updateField('goal', response.extractedData!['goal']);
+          provider.extractedData.updateField('goalDescription', response.extractedData!['goalDescription']);
+          print("💾 [CHAT_SCREEN] Goal and Description saved");
+        }
+        
+        // Add AI response to chat
+        provider.addMessage(
+          text: response.text,
+          isUser: false,
+        );
+        _scrollToBottom();
+        
+        // Show dynamic prompt asking for all missing fields
+        final dynamicPrompt = _generateDynamicPrompt(provider);
+        provider.addMessage(
+          text: dynamicPrompt,
+          isUser: false,
+        );
+        _scrollToBottom();
+      } catch (e) {
+        print("❌ [CHAT_SCREEN] ERROR: $e");
+        provider.addMessage(
+          text: "Sorry, I had trouble processing that. Could you try again?",
+          isUser: false,
+        );
+      }
+      return;
+    }
+    
+    // STEP 2: Collect other fields one-by-one based on goal
+    print("📋 [CHAT_SCREEN] STEP 2: Collecting fields based on goal");
+    final nextField = provider.extractedData.getNextFieldWithPrompt();
+    
+    if (nextField['isCollected']) {
+      print("✅ [CHAT_SCREEN] All fields collected!");
+      provider.addMessage(
+        text: "Great! I've collected all the information I need. Let me create your personalized plan...",
+        isUser: false,
+      );
+      _scrollToBottom();
+      return;
+    }
+    
+    print("🔍 [CHAT_SCREEN] Next field: ${nextField['fieldName']} (${nextField['fieldKey']})");
+    print("📝 [CHAT_SCREEN] USER INPUT: $text");
+    
+    try {
+      final aiService = AiService();
+      
+      // Get the prompt based on field type
+      final promptName = nextField['prompt'] as String;
+      final prompt = _getPromptByName(promptName);
+      
+      final response = await aiService.getResponse(
+        history: [
+          {"role": "user", "content": text}
+        ],
+        currentData: provider.extractedData.toJson(),
+        extractionStatus: {},
+        customSystemPrompt: prompt,
+      );
+      
+      print("✅ [CHAT_SCREEN] AI RESPONSE: ${response.text}");
+      print("📊 [CHAT_SCREEN] EXTRACTED DATA: ${response.extractedData}");
+      
+      // Save the field data
+      if (response.extractedData != null) {
+        response.extractedData!.forEach((key, value) {
+          provider.extractedData.updateField(key, value);
+        });
+        print("💾 [CHAT_SCREEN] Field ${nextField['fieldName']} saved");
+      }
+      
+      // Add AI response to chat
+      provider.addMessage(
+        text: response.text,
+        isUser: false,
+      );
+      _scrollToBottom();
+      
+      // Show dynamic prompt asking for remaining missing fields
+      final dynamicPrompt = _generateDynamicPrompt(provider);
+      provider.addMessage(
+        text: dynamicPrompt,
+        isUser: false,
+      );
+      _scrollToBottom();
+    } catch (e) {
+      print("❌ [CHAT_SCREEN] ERROR: $e");
+      provider.addMessage(
+        text: "Sorry, I had trouble processing that. Could you try again?",
+        isUser: false,
+      );
+    }
+  }
+  
+  String _generateDynamicPrompt(OnboardingProvider provider) {
+    final goalLower = provider.extractedData.goal?.toLowerCase() ?? '';
+    final missingFieldsList = <String>[];
+    
+    // Weight Loss / Muscle Gain
+    if (goalLower.contains('weight') || goalLower.contains('muscle') || 
+        goalLower.contains('lose') || goalLower.contains('gain') ||
+        goalLower.contains('bulk') || goalLower.contains('strength')) {
+      if (provider.extractedData.age == null) missingFieldsList.add('age');
+      if (provider.extractedData.gender == null) missingFieldsList.add('gender');
+      if (provider.extractedData.weight == null) missingFieldsList.add('weight (in kg)');
+      if (provider.extractedData.height == null) missingFieldsList.add('height (in cm)');
+      if (provider.extractedData.lifestyle == null) missingFieldsList.add('lifestyle');
+      if (provider.extractedData.intensity == null) missingFieldsList.add('preferred workout intensity');
+    }
+    // Mental Health
+    else if (goalLower.contains('mental') || goalLower.contains('stress') || 
+             goalLower.contains('anxiety') || goalLower.contains('depression')) {
+      if (provider.extractedData.age == null) missingFieldsList.add('age');
+      if (provider.extractedData.gender == null) missingFieldsList.add('gender');
+      if (provider.extractedData.mentalHealthConcerns == null) missingFieldsList.add('mental health concerns');
+      if (provider.extractedData.sleepQuality == null) missingFieldsList.add('sleep quality');
+    }
+    // Sleep Better
+    else if (goalLower.contains('sleep') || goalLower.contains('rest')) {
+      if (provider.extractedData.age == null) missingFieldsList.add('age');
+      if (provider.extractedData.gender == null) missingFieldsList.add('gender');
+      if (provider.extractedData.sleepQuality == null) missingFieldsList.add('sleep quality');
+      if (provider.extractedData.schedule == null) missingFieldsList.add('daily schedule');
+    }
+    // Nutrition
+    else if (goalLower.contains('nutrition') || goalLower.contains('diet')) {
+      if (provider.extractedData.age == null) missingFieldsList.add('age');
+      if (provider.extractedData.gender == null) missingFieldsList.add('gender');
+      if (provider.extractedData.weight == null) missingFieldsList.add('weight (in kg)');
+      if (provider.extractedData.height == null) missingFieldsList.add('height (in cm)');
+      if (provider.extractedData.currentSituation == null) missingFieldsList.add('current diet habits');
+    }
+    
+    if (missingFieldsList.isEmpty) {
+      return "Perfect! I have all the information I need. Let me create your personalized plan...";
+    }
+    
+    if (missingFieldsList.length == 1) {
+      return "To help you better, could you please share your ${missingFieldsList[0]}?";
+    }
+    
+    final fieldList = missingFieldsList.join(", ");
+    return "To create the best plan for you, I need to know your $fieldList. Could you share these details?";
+  }
+
+  String _getPromptByName(String promptName) {
+    switch (promptName) {
+      case 'extractGoalPrompt':
+        return AiConfig.extractGoalPrompt;
+      case 'extractPersonalDataPrompt':
+        return AiConfig.extractPersonalDataPrompt;
+      case 'extractPhysicalDataPrompt':
+        return AiConfig.extractPhysicalDataPrompt;
+      case 'extractLifestylePrompt':
+        return AiConfig.extractLifestylePrompt;
+      case 'extractFitnessLevelPrompt':
+        return AiConfig.extractFitnessLevelPrompt;
+      default:
+        return AiConfig.extractPersonalDataPrompt;
+    }
   }
 
   @override
@@ -324,6 +516,38 @@ class _AiChatScreenState extends State<AiChatScreen>
             ],
           ),
           const Spacer(),
+          IconButton(
+            icon: const Icon(Icons.refresh, size: 20),
+            tooltip: "Reset all data",
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text("Reset All Data?"),
+                  content: const Text(
+                    "This will clear all collected information. Are you sure?",
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("Cancel"),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        provider.resetAllData();
+                        Navigator.pop(context);
+                        print("🔄 [CHAT_SCREEN] ALL DATA RESET");
+                      },
+                      child: const Text(
+                        "Reset",
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
           if (provider.userConfig != null)
             TextButton(
               onPressed: () {

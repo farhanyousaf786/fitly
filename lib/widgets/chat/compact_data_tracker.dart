@@ -13,16 +13,14 @@ class CompactDataTracker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final requiredFields = extractedData.getRequiredFields();
-    final optionalFields = extractedData.getOptionalFields();
+    final collectedFields = extractedData.getCollectedFields();
     final isReadyForPlan = extractedData.hasRequiredInfo();
 
     // Log tracker UI state
     print("🎨 [TRACKER_UI] DISPLAY STATE:");
     print("   Extracted Data Object: $extractedData");
     print("   Extracted Data Map: ${extractedData.toJson()}");
-    print("   Required Fields: $requiredFields");
-    print("   Optional Fields: $optionalFields");
+    print("   Collected Fields: $collectedFields");
     print("   Is Ready For Plan: $isReadyForPlan");
     print("   Goal: ${extractedData.goal}");
     print("   Age: ${extractedData.age}");
@@ -31,28 +29,18 @@ class CompactDataTracker extends StatelessWidget {
     print("   Height: ${extractedData.height}");
     print("   Lifestyle: ${extractedData.lifestyle}");
 
-    // Get collected and needed required fields
-    final collectedRequired = requiredFields.entries
+    // Get collected and needed fields
+    final collected = collectedFields.entries
         .where((e) => e.value)
         .map((e) => e.key)
         .toList();
-    final neededRequired = requiredFields.entries
+    final needed = collectedFields.entries
         .where((e) => !e.value)
         .map((e) => e.key)
         .toList();
     
-    print("   Collected Required: $collectedRequired");
-    print("   Needed Required: $neededRequired");
-
-    // Get collected and needed optional fields
-    final collectedOptional = optionalFields.entries
-        .where((e) => e.value)
-        .map((e) => e.key)
-        .toList();
-    final neededOptional = optionalFields.entries
-        .where((e) => !e.value)
-        .map((e) => e.key)
-        .toList();
+    print("   Collected Fields: $collected");
+    print("   Needed Fields: $needed");
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -70,7 +58,7 @@ class CompactDataTracker extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Row 1: Required Fields
+          // Collected Fields
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Column(
@@ -80,62 +68,7 @@ class CompactDataTracker extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      '⭐ Required',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      '${collectedRequired.length}/${requiredFields.length}',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: neededRequired.isEmpty
-                            ? const Color(0xFF10B981)
-                            : const Color(0xFFEF4444),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: [
-                    ...collectedRequired.map((field) => _buildFieldTag(
-                          field,
-                          isCollected: true,
-                        )),
-                    ...neededRequired.map((field) => _buildFieldTag(
-                          field,
-                          isCollected: false,
-                          isRequired: true,
-                        )),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Divider
-          Container(
-            height: 0.5,
-            color: AppColors.textSecondary.withOpacity(0.1),
-          ),
-
-          // Row 2: Optional Fields + Status
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '✨ Optional',
+                      '📊 Collected Data',
                       style: AppTextStyles.bodySmall.copyWith(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -146,7 +79,7 @@ class CompactDataTracker extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          '${collectedOptional.length}/${optionalFields.length}',
+                          '${collected.length}/${collectedFields.length}',
                           style: AppTextStyles.bodySmall.copyWith(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
@@ -164,7 +97,7 @@ class CompactDataTracker extends StatelessWidget {
                             borderRadius: BorderRadius.circular(5),
                           ),
                           child: Text(
-                            isReadyForPlan ? '✓ Ready' : 'Building',
+                            isReadyForPlan ? '✓ Ready' : 'Collecting',
                             style: AppTextStyles.bodySmall.copyWith(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
@@ -178,18 +111,18 @@ class CompactDataTracker extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (collectedOptional.isNotEmpty || neededOptional.isNotEmpty)
+                if (collected.isNotEmpty || needed.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Wrap(
                       spacing: 6,
                       runSpacing: 4,
                       children: [
-                        ...collectedOptional.map((field) => _buildFieldTag(
+                        ...collected.map((field) => _buildFieldTag(
                               field,
                               isCollected: true,
                             )),
-                        ...neededOptional.map((field) => _buildFieldTag(
+                        ...needed.map((field) => _buildFieldTag(
                               field,
                               isCollected: false,
                             )),

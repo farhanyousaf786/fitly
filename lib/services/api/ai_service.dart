@@ -22,6 +22,7 @@ class AiService {
     required List<Map<String, String>> history,
     required Map<String, dynamic> currentData,
     required Map<String, String> extractionStatus,
+    String? customSystemPrompt,
   }) async {
     final apiKey = dotenv.env['OPENAI_API_KEY'];
 
@@ -33,15 +34,18 @@ class AiService {
     }
 
     try {
+      // Use custom prompt if provided, otherwise use a default focused prompt
+      final systemPrompt = customSystemPrompt ?? """
+You are Fitly, a friendly AI Health Coach.
+
+Extract data from the user's message and respond naturally.
+ALWAYS end with: FITLY_EXTRACT_JSON: {...}
+""";
+
       final messages = [
         {
           "role": "system",
-          "content":
-              """${AiConfig.systemPrompt}
-          
-CURRENT DATA SNAPSHOT: ${jsonEncode(currentData)}
-EXTRACTION STATUS: ${jsonEncode(extractionStatus)}
-""",
+          "content": systemPrompt,
         },
         ...history,
       ];

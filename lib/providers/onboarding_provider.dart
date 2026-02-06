@@ -56,6 +56,16 @@ class OnboardingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void addMessage({required String text, required bool isUser}) {
+    final message = ChatMessage(
+      text: text,
+      isUser: isUser,
+      timestamp: DateTime.now(),
+    );
+    _conversationManager.addMessage(message);
+    notifyListeners();
+  }
+
   String? _inferGoalFromText(String text) {
     final cleaned = text
         .trim()
@@ -324,6 +334,16 @@ class OnboardingProvider extends ChangeNotifier {
     await _conversationManager.reset();
     _tempUserConfig = null;
     notifyListeners();
+  }
+
+  void resetAllData() {
+    print("🔄 [PROVIDER] RESETTING ALL DATA");
+    _conversationManager.resetUserData();
+    _tempUserConfig = null;
+    _isChatLoading = false;
+    _chatError = null;
+    notifyListeners();
+    print("✅ [PROVIDER] ALL DATA RESET COMPLETE");
   }
 
   void clearError() {

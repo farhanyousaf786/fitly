@@ -106,7 +106,7 @@ class ConversationManager {
     print("   Weight: ${_userData.weight}");
     print("   Height: ${_userData.height}");
     print("   Lifestyle: ${_userData.lifestyle}");
-    print("   Required Fields: ${_userData.getRequiredFields()}");
+    print("   Collected Fields: ${_userData.getCollectedFields()}");
     print("   Has Required Info: ${_userData.hasRequiredInfo()}");
 
     if (_userData.hasRequiredInfo()) {
@@ -233,5 +233,13 @@ class ConversationManager {
     await prefs.remove(_keyHistory);
     await prefs.remove(_keyUserData);
     await prefs.remove(_keySessionMeta);
+  }
+
+  void resetUserData() {
+    print("🔄 [CONVERSATION_MANAGER] RESETTING USER DATA");
+    _userData = ExtractedUserData();
+    _state = ConversationState.initial;
+    _save();
+    print("✅ [CONVERSATION_MANAGER] USER DATA RESET");
   }
 }
