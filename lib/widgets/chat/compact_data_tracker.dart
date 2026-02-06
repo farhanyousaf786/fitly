@@ -17,6 +17,20 @@ class CompactDataTracker extends StatelessWidget {
     final optionalFields = extractedData.getOptionalFields();
     final isReadyForPlan = extractedData.hasRequiredInfo();
 
+    // Log tracker UI state
+    print("🎨 [TRACKER_UI] DISPLAY STATE:");
+    print("   Extracted Data Object: $extractedData");
+    print("   Extracted Data Map: ${extractedData.toJson()}");
+    print("   Required Fields: $requiredFields");
+    print("   Optional Fields: $optionalFields");
+    print("   Is Ready For Plan: $isReadyForPlan");
+    print("   Goal: ${extractedData.goal}");
+    print("   Age: ${extractedData.age}");
+    print("   Gender: ${extractedData.gender}");
+    print("   Weight: ${extractedData.weight}");
+    print("   Height: ${extractedData.height}");
+    print("   Lifestyle: ${extractedData.lifestyle}");
+
     // Get collected and needed required fields
     final collectedRequired = requiredFields.entries
         .where((e) => e.value)
@@ -26,6 +40,9 @@ class CompactDataTracker extends StatelessWidget {
         .where((e) => !e.value)
         .map((e) => e.key)
         .toList();
+    
+    print("   Collected Required: $collectedRequired");
+    print("   Needed Required: $neededRequired");
 
     // Get collected and needed optional fields
     final collectedOptional = optionalFields.entries

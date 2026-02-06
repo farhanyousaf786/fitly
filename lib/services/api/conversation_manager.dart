@@ -97,12 +97,35 @@ class ConversationManager {
       _userData.updateField(key, value);
     });
 
+    // Log current backend state
+    print("📊 [FITLY_AI] BACKEND STATE AFTER UPDATE:");
+    print("   Full Data Map: ${_userData.toJson()}");
+    print("   Goal: ${_userData.goal}");
+    print("   Age: ${_userData.age}");
+    print("   Gender: ${_userData.gender}");
+    print("   Weight: ${_userData.weight}");
+    print("   Height: ${_userData.height}");
+    print("   Lifestyle: ${_userData.lifestyle}");
+    print("   Required Fields: ${_userData.getRequiredFields()}");
+    print("   Has Required Info: ${_userData.hasRequiredInfo()}");
+
     if (_userData.hasRequiredInfo()) {
       print("🎯 [FITLY_AI] ALL CORE INFO COLLECTED!");
       _state = ConversationState.complete;
     }
 
     _save();
+  }
+
+  // Log current userData state on demand
+  void logCurrentState() {
+    print("📋 [CONVERSATION_MANAGER] CURRENT STATE:");
+    print("   User Data: ${_userData.toJson()}");
+    print("   Goal: ${_userData.goal}");
+    print("   Age: ${_userData.age}");
+    print("   Weight: ${_userData.weight}");
+    print("   Height: ${_userData.height}");
+    print("   Has Required Info: ${_userData.hasRequiredInfo()}");
   }
 
   void setSummary(String summary) {
@@ -183,11 +206,11 @@ class ConversationManager {
   }
 
   bool isReadyForPlan() {
-    // Ready when: has all required info OR has collected enough messages with good detail
+    // Ready ONLY when: has all required info (goal, age, gender, weight, height, lifestyle)
+    // Do NOT generate plan based on message count alone
     final hasRequiredInfo = _userData.hasRequiredInfo();
-    final hasEnoughMessages = _messages.length >= 12;
     
-    return hasRequiredInfo || hasEnoughMessages;
+    return hasRequiredInfo;
   }
 
   double getCompleteness() {

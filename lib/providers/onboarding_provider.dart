@@ -35,10 +35,89 @@ class OnboardingProvider extends ChangeNotifier {
   String get loadingMessage => _loadingMessage;
   UserConfig? get userConfig => _tempUserConfig;
   List<ChatMessage> get chatMessages => _conversationManager.messages;
-  ExtractedUserData get extractedData => _conversationManager.userData;
+  ExtractedUserData get extractedData {
+    final data = _conversationManager.userData;
+    print("🔗 [PROVIDER_GETTER] extractedData requested:");
+    print("   Object: $data");
+    print("   Data Map: ${data.toJson()}");
+    print("   Goal: ${data.goal}");
+    print("   Age: ${data.age}");
+    print("   Weight: ${data.weight}");
+    return data;
+  }
   double get totalCost => _conversationManager.estimatedCost;
   ConversationState get conversationState => _conversationManager.state;
   double get dataCompleteness => _conversationManager.getCompleteness();
+
+  void applyLocalExtraction(Map<String, dynamic> fields) {
+    if (fields.isEmpty) return;
+    print("🧩 [PROVIDER] LOCAL EXTRACTION APPLIED: $fields");
+    _conversationManager.updateUserData(fields);
+    notifyListeners();
+  }
+
+  String? _inferGoalFromText(String text) {
+    final cleaned = text
+        .trim()
+        .replaceAll(RegExp(r'[^\w\s/\-,:.]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ');
+    final t = cleaned.toLowerCase();
+
+    String? extractAfter(List<String> markers) {
+      for (final m in markers) {
+        final idx = t.indexOf(m);
+        if (idx >= 0) {
+          final raw = cleaned.substring(idx + m.length).trim();
+          if (raw.isNotEmpty) return raw;
+        }
+      }
+      return null;
+    }
+
+    final explicit = extractAfter([
+      'goal:',
+      'my goal is',
+      'my goal:',
+      'i want to',
+      'i wanna',
+      'i would like to',
+      'i need to',
+    ]);
+    if (explicit != null && explicit.length >= 2) {
+      return explicit;
+    }
+
+    if (t.contains('weight loss') ||
+        t.contains('lose weight') ||
+        t.contains('loss weight') ||
+        t.contains('reduce weight') ||
+        t.contains('burn fat')) {
+      return 'Weight Loss';
+    }
+    if (t.contains('muscle') || t.contains('bulk') || t.contains('gain muscle')) {
+      return 'Muscle Gain';
+    }
+    if (t.contains('sleep') || t.contains('insomnia')) {
+      return 'Sleep Better';
+    }
+    if (t.contains('stress') ||
+        t.contains('anxiety') ||
+        t.contains('depression') ||
+        t.contains('panic')) {
+      return 'Stress/Mental Wellness';
+    }
+    if (t.contains('diet') || t.contains('nutrition') || t.contains('eat healthy')) {
+      return 'Healthy Diet';
+    }
+
+    // If user typed a short goal phrase (even 1 word), treat it as the goal.
+    // Examples: "cut", "bulk", "lean", "fitness", "wellness", "weight".
+    if (cleaned.isNotEmpty && cleaned.length <= 40 && !t.contains('?')) {
+      return cleaned;
+    }
+
+    return null;
+  }
 
   // Chat Methods
   Future<void> initChat() async {
@@ -78,6 +157,13 @@ class OnboardingProvider extends ChangeNotifier {
 
   Future<void> sendChatMessage(String text) async {
     if (text.trim().isEmpty) return;
+
+    if (extractedData.goal == null) {
+      final inferredGoal = _inferGoalFromText(text);
+      if (inferredGoal != null) {
+        applyLocalExtraction({"goal": inferredGoal});
+      }
+    }
 
     final processedText = text.length > 1000
         ? "${text.substring(0, 1000)}... [truncated]"
@@ -121,7 +207,9 @@ class OnboardingProvider extends ChangeNotifier {
       _conversationManager.addMessage(aiMessage);
 
       if (response.extractedData != null) {
+        print("🔄 [PROVIDER] EXTRACTED DATA FROM AI: ${response.extractedData}");
         _conversationManager.updateUserData(response.extractedData!);
+        print("✅ [PROVIDER] NOTIFYING LISTENERS - TRACKER SHOULD UPDATE");
         notifyListeners();
       }
 
@@ -151,6 +239,22 @@ class OnboardingProvider extends ChangeNotifier {
 
   Future<void> generatePlanFromChat() async {
     print("🏗️ [FITLY_AI] STARTING PLAN GENERATION...");
+    print("📋 [PLAN_GEN] DATA USED FOR PLAN GENERATION:");
+    print("   Goal: ${extractedData.goal}");
+    print("   Age: ${extractedData.age}");
+    print("   Gender: ${extractedData.gender}");
+    print("   Weight: ${extractedData.weight}");
+    print("   Height: ${extractedData.height}");
+    print("   Lifestyle: ${extractedData.lifestyle}");
+    print("   Current Situation: ${extractedData.currentSituation}");
+    print("   Schedule: ${extractedData.schedule}");
+    print("   Intensity: ${extractedData.intensity}");
+    print("   Mental Health Concerns: ${extractedData.mentalHealthConcerns}");
+    print("   Stress Level: ${extractedData.stressLevel}");
+    print("   Sleep Quality: ${extractedData.sleepQuality}");
+    print("   Health Issues: ${extractedData.healthIssues}");
+    print("   Full Extracted Data: ${extractedData.toJson()}");
+    
     _isChatLoading = true;
     _loadingMessage = "Creating your perfect plan...";
     _conversationManager.updateState(ConversationState.generating);
@@ -166,6 +270,16 @@ class OnboardingProvider extends ChangeNotifier {
 
     try {
       final config = await _aiService.generatePlan(extractedData);
+      print("✅ [PLAN_GEN] PLAN GENERATED SUCCESSFULLY!");
+      print("   Goal Title: ${config.goalTitle}");
+      print("   Goal Type: ${config.goalType}");
+      print("   Target Description: ${config.targetDescription}");
+      print("   User Age: ${config.age}");
+      print("   User Gender: ${config.gender}");
+      print("   User Weight: ${config.weight}");
+      print("   User Height: ${config.height}");
+      print("   Fitness Goal: ${config.fitnessGoal}");
+      print("   Activity Level: ${config.activityLevel}");
       _tempUserConfig = config;
 
       await _conversationManager.savePlanLocally(config.toMap());

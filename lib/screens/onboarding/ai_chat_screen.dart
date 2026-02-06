@@ -177,6 +177,13 @@ class _AiChatScreenState extends State<AiChatScreen>
                       "Healthy Diet 🥗",
                     ],
                     onSelected: (text) {
+                      final provider = context.read<OnboardingProvider>();
+                      final normalized = text
+                          .replaceAll(RegExp(r'[\u{1F300}-\u{1FAFF}]', unicode: true), '')
+                          .replaceAll(RegExp(r'[^A-Za-z0-9\s/\-]'), '')
+                          .replaceAll(RegExp(r'\s+'), ' ')
+                          .trim();
+                      provider.applyLocalExtraction({"goal": normalized});
                       _messageController.text = text;
                       _sendMessage();
                     },
@@ -319,7 +326,17 @@ class _AiChatScreenState extends State<AiChatScreen>
           const Spacer(),
           if (provider.userConfig != null)
             TextButton(
-              onPressed: () => Navigator.pushNamed(context, '/plan-summary'),
+              onPressed: () {
+                print("👁️ [SEE_PLAN_BUTTON] CLICKED");
+                print("   Has Plan: ${provider.userConfig != null}");
+                print("   Plan Name: ${provider.userConfig?.goalTitle ?? 'N/A'}");
+                print("   Plan Type: ${provider.userConfig?.goalType ?? 'N/A'}");
+                print("   User Age: ${provider.userConfig?.age ?? 'N/A'}");
+                print("   User Weight: ${provider.userConfig?.weight ?? 'N/A'}");
+                print("   User Height: ${provider.userConfig?.height ?? 'N/A'}");
+                print("   Fitness Goal: ${provider.userConfig?.fitnessGoal ?? 'N/A'}");
+                Navigator.pushNamed(context, '/plan-summary');
+              },
               child: const Text(
                 "See Plan 🚀",
                 style: TextStyle(fontWeight: FontWeight.bold),
@@ -340,7 +357,9 @@ class _AiChatScreenState extends State<AiChatScreen>
 
     return Column(
       children: [
+        // Force rebuild by using a unique key based on extracted data
         CompactDataTracker(
+          key: ValueKey(provider.extractedData.toJson().toString()),
           extractedData: provider.extractedData,
         ),
         if (kDebugMode)

@@ -41,13 +41,6 @@ class AiService {
           
 CURRENT DATA SNAPSHOT: ${jsonEncode(currentData)}
 EXTRACTION STATUS: ${jsonEncode(extractionStatus)}
-
-INSTRUCTIONS:
-1. Review the extraction status.
-2. If a category is '○ Not mentioned', try to naturally guide the conversation towards it.
-3. If the user is vague (e.g., 'I eat normal food'), ask for specific examples.
-4. If you have enough info, use the 'extract_user_info' function to save it.
-5. Be concise and supportive.
 """,
         },
         ...history,
@@ -65,8 +58,6 @@ INSTRUCTIONS:
             body: jsonEncode({
               "model": AiConfig.model,
               "messages": messages,
-              "functions": AiConfig.functions,
-              "function_call": "auto",
               "max_tokens": 500,
               "temperature": 0.7,
             }),
@@ -82,12 +73,42 @@ INSTRUCTIONS:
         String content = choice['content'] ?? "";
         Map<String, dynamic>? extracted;
 
-        if (choice['function_call'] != null) {
-          final functionName = choice['function_call']['name'];
-          print("🛠️ [FITLY_AI] FUNCTION CALL: $functionName");
-          if (functionName == 'extract_user_info') {
-            extracted = jsonDecode(choice['function_call']['arguments']);
-            print("📦 [FITLY_AI] EXTRACTED: $extracted");
+        Map<String, dynamic>? _extractFromMarkerLine(String text) {
+          final match = RegExp(r'^\s*FITLY_EXTRACT_JSON:\s*(\{.*\})\s*$',
+                  multiLine: true)
+              .firstMatch(text);
+          if (match == null) return null;
+          final rawJson = match.group(1);
+          if (rawJson == null) return null;
+          try {
+            final decoded = jsonDecode(rawJson);
+            if (decoded is Map<String, dynamic>) return decoded;
+            return null;
+          } catch (_) {
+            return null;
+          }
+        }
+
+        String _stripMarkerLine(String text) {
+          return text
+              .replaceAll(
+                RegExp(r'\n?\s*FITLY_EXTRACT_JSON:\s*\{.*\}\s*$',
+                    multiLine: true),
+                '',
+              )
+              .trim();
+        }
+
+        // Parse extraction from marker line in content
+        if (content.isNotEmpty) {
+          final markerExtracted = _extractFromMarkerLine(content);
+          if (markerExtracted != null) {
+            extracted = markerExtracted;
+            print("📦 [FITLY_AI] EXTRACTED (marker): $extracted");
+            content = _stripMarkerLine(content);
+          } else {
+            print("⚠️ [FITLY_AI] NO EXTRACTION MARKER FOUND");
+            print("📝 [FITLY_AI] FULL ASSISTANT CONTENT: $content");
           }
         }
 
